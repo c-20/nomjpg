@@ -1,0 +1,2 @@
+# nomjpg
+crop images

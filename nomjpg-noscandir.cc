@@ -23,11 +23,12 @@ exit 0
 using namespace cimg_library;
 
 #define nomjpg  main
-#define IN      int
+#define INT     int
 #define CH      char
+#define CS      CH *
 #define CCH     const CH
 #define CCS     CCH *
-//#define $$$     IN argc, CH **argv
+//#define $$$     INT argc, CH **argv
 
 #define LOG                  std::cout
 #define STRING               std::string
@@ -39,8 +40,7 @@ using namespace cimg_library;
 #define CWINDOWWIDTH         1024
 #define CWINDOWHEIGHT        768
 
-STRING IN2STR(IN x) { std::stringstream ss; ss << x; return ss.str(); }
-#define NAMELIST  struct dirent **
+STRING INT2STR(INT x) { std::stringstream ss; ss << x; return ss.str(); }
 
 bool alphacompare(STRING a, STRING b) { return a < b; }
 VECTOR<STRING> alphasort(VECTOR<STRING> list) {
@@ -48,40 +48,44 @@ VECTOR<STRING> alphasort(VECTOR<STRING> list) {
   return list;
 }
 VECTOR<STRING> scandir(STRING path) {
+  VECTOR<STRING> nofiles;
   VECTOR<STRING> files;
+  INT dot = 0, dotdot = 0;
   DIR *folder = opendir(path.c_str());
   if (!folder) { return files; }
   struct dirent *entry;
   while ((entry = readdir(folder))) {
-    files.push_back(entry->d_name);
+    CS name = entry->d_name;
+    if (name[0] == '.' && name[1] == '\0')
+      { dot++; } // skip '.' entry
+    else if (name[0] == '.' && name[1] == '.' && name[2] == '\0')
+      { dotdot++; } // skip '..' entry
+    else { files.push_back(entry->d_name); }
   }
   closedir(folder);
-  return files;
+  if (dot && dotdot) { return alphasort(files); }
+  else { return nofiles; } // if . and .. not detected
 }
 
-//IN main($$$) {
-IN nomjpg() {
-  IN cwinwidth = CWINDOWWIDTH;
-  IN cwinheight = CWINDOWHEIGHT;
+INT nomjpg() {
+  INT cwinwidth = CWINDOWWIDTH;
+  INT cwinheight = CWINDOWHEIGHT;
 //  cimg_usage("crop images - wasd,tfgh,ijkl,c,arrows"); // -h
   STRING imgfolder = "./img";
   STRING omgfolder = "./omg";
-//  NAMELIST imglist;
-//  IN numfiles = scandir(imgfolder.c_str(), &imglist, 0, alphasort);
   VECTOR<STRING> imglist = scandir(imgfolder);
-  IN numfiles = imglist.size();
-//  numfiles -= 2; // assume . and .. are first, and skip them
+  INT numfiles = imglist.size();
   CCS defaulttitle = (numfiles < 0) ? "NO FILES" : "NO IMAGE"; // 0 latter
   CImgDisplay imagewindow(cwinwidth, cwinheight, defaulttitle, 0);
-  IN fileix = 0; // align to first image
-  IN prevfileix = -1; // initialise first image
+  INT fileix = 0; // align to first image
+  INT prevfileix = -1; // initialise first image
   // defined when image is loaded (also loads outcache)
-  IN imagewidth = 0, imageheight = 0;
-  IN cropleft = 0, cropright = 0;
-  IN cropup = 0, cropdown = 0;
-  IN omgimagewidth = 0, omgimageheight = 0;
-  IN updatetitle = 2; // simulate keyup
-  IN titleupdates = 0;
+  INT imagewidth = 0, imageheight = 0;
+  INT cropleft = 0, cropright = 0;
+  INT cropup = 0, cropdown = 0;
+  INT omgimagewidth = 0, omgimageheight = 0;
+  INT updatetitle = 2; // simulate keyup
+  INT titleupdates = 0;
   STRING omgerror = "";
   STRING imgpath = "DUMMYIMAGE.JPG";
   STRING omgpath = ""; // empty = no write/read
@@ -176,8 +180,8 @@ IN nomjpg() {
             CCS omgcpath = omgpath.c_str();
             FILE *omgfile = fopen(omgcpath, "r"); // read current file data
             if (omgfile) { // else no current file (stay at 0s)
-              IN omgchar = fgetc(omgfile);
-              IN *omgnumber = &cropleft;
+              INT omgchar = fgetc(omgfile);
+              INT *omgnumber = &cropleft;
               if (omgchar == EOF) {
                 omgerror = "omgfile unexpectedly empty\n";
                 fclose(omgfile);
@@ -221,8 +225,8 @@ IN nomjpg() {
         // same image or different, any keyup we redraw the image
         omgimagewidth = imagewidth - cropleft - cropright;
         omgimageheight = imageheight - cropup - cropdown;
-        IN omgrx = imagewidth - 1 - cropright;
-        IN omgby = imageheight - 1 - cropdown;
+        INT omgrx = imagewidth - 1 - cropright;
+        INT omgby = imageheight - 1 - cropdown;
         croppedimage = image.get_crop(cropleft, cropup, 0, 0, omgrx, omgby, 0, 0);
         CIMAGE sizedimage = croppedimage.normalize(0, 255).resize(cwinwidth, cwinheight);
         imagewindow.display(sizedimage);
@@ -245,27 +249,27 @@ IN nomjpg() {
         // init will have nonmatching prevfileindex, processed above
         omgimagewidth = imagewidth - cropleft - cropright;
         omgimageheight = imageheight - cropup - cropdown;
-        IN omgrx = imagewidth - 1 - cropright;
-        IN omgby = imageheight - 1 - cropdown;
+        INT omgrx = imagewidth - 1 - cropright;
+        INT omgby = imageheight - 1 - cropdown;
         croppedimage = image.get_crop(cropleft, cropup, 0, 0, omgrx, omgby, 0, 0);
         CIMAGE sizedimage = croppedimage.normalize(0, 255).resize(cwinwidth, cwinheight);
         imagewindow.display(sizedimage);
       } // end of switch image vs update current cache condition (keyup else keypress)
       // title updates with each keypress iteration
-      STRING omgtitle = "IX: " + IN2STR(fileix);
+      STRING omgtitle = "IX: " + INT2STR(fileix);
       omgtitle += ": " + imgpath;
       if (updatetitle == 1 && prevfileix != fileix) {
         omgtitle += "[]"; // if waiting for an image change, current crop data is meaningless ....
         // wait for keyup (if updatetitle == 2, image index aligned above)
         // can shift arrow key more than once --- title should flick through but don't load huge images
       } else {
-        omgtitle += " [" + IN2STR(cropleft);
-        omgtitle += ", " + IN2STR(cropright);
-        omgtitle += ", " + IN2STR(cropup);
-        omgtitle += ", " + IN2STR(cropdown);
+        omgtitle += " [" + INT2STR(cropleft);
+        omgtitle += ", " + INT2STR(cropright);
+        omgtitle += ", " + INT2STR(cropup);
+        omgtitle += ", " + INT2STR(cropdown);
         omgtitle += "] -> " + omgfolder;
-        omgtitle += " [" + IN2STR(omgimagewidth);
-        omgtitle += "x" + IN2STR(omgimageheight);
+        omgtitle += " [" + INT2STR(omgimagewidth);
+        omgtitle += "x" + INT2STR(omgimageheight);
         omgtitle += "]";
       }
       if (omgerror.length() > 0) {
